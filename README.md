@@ -1,4 +1,4 @@
-# Connect to an MS-SQL server and run queries using a simple API
+# Connect to an Oracle-SQL server and run queries using a simple API
 
 A simple way to run SQL queries using Async/Await and Promises. This is not an ORM.  
 It uses node-mssql under the hood
