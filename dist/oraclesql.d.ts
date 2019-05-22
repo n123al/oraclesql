@@ -1,25 +1,26 @@
-import * as mssql from 'oracledb';
+import * as osql from 'oracledb';
+export declare type ResultSql = ({
+    [column: string]: any;
+})[];
 export declare class SqlFactory {
     private static instance;
-    readonly connectionTimeout: number;
-    private pool;
-    private timerReset;
-    private idleTimer;
+    protected pool: osql.Pool | undefined;
+    protected config: osql.PoolAttributes | undefined;
     private constructor();
     static getInstance(): SqlFactory;
-    init(config: mssql.config): void;
+    init(config: osql.PoolAttributes): void;
+    ConnectDB(): Promise<void>;
     close: () => void;
     /** Executes query and returns the result */
-    query(sqlStr: string, ...params: Array<string | number | boolean>): Promise<mssql.IRecordSet<any>>;
+    query(sqlStr: string, ...params: Array<string | number | boolean>): Promise<ResultSql>;
     queryOne(sqlStr: string, ...params: Array<string | number | boolean>): Promise<any>;
-    insertReturnIdentity(sqlStr: string, ...params: Array<string | number | boolean>): Promise<number | null>;
     /** Alias to query */
-    q: (sqlStr: string, ...params: (string | number | boolean)[]) => Promise<any>;
+    q: (sqlStr: string, ...params: (string | number | boolean)[]) => Promise<{
+        [column: string]: any;
+    }[]>;
     /** Alias to queryOne */
     q1: (sqlStr: string, ...params: (string | number | boolean)[]) => Promise<any>;
-    /** Alias to insertReturnIdentity */
-    ii: (sqlStr: string, ...params: (string | number | boolean)[]) => Promise<number | null>;
 }
-export interface SqlConfig extends mssql.config {
+export interface SqlConfig extends osql.PoolAttributes {
 }
 export declare const sql: SqlFactory;

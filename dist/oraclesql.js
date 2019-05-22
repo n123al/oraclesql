@@ -8,14 +8,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const mssql = require("oracledb");
+const osql = require("oracledb");
 class SqlFactory {
     constructor() {
-        this.connectionTimeout = 30000;
-        this.timerReset = () => {
-            clearTimeout(this.idleTimer);
-            this.idleTimer = setTimeout(this.close, this.connectionTimeout);
-        };
         this.close = () => {
             if (this.pool)
                 this.pool.close();
@@ -24,8 +19,6 @@ class SqlFactory {
         this.q = this.query;
         /** Alias to queryOne */
         this.q1 = this.queryOne;
-        /** Alias to insertReturnIdentity */
-        this.ii = this.insertReturnIdentity;
         if (SqlFactory.instance)
             throw new Error('Instantiation failed. Use .getInstance() instead of new.');
         SqlFactory.instance = this;
@@ -34,80 +27,73 @@ class SqlFactory {
         return SqlFactory.instance;
     }
     init(config) {
-        this.pool = new mssql.ConnectionPool(config);
+        this.config = config;
+        // @ts-ignore
+        osql.outFormat = osql.OBJECT;
+    }
+    ConnectDB() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.config)
+                throw new Error('SQL config not initialized. Use sql.init(config) first');
+            // mssql.outFormat = mssql.ARRAY;
+            try {
+                let pool = yield osql.createPool(this.config);
+                this.pool = pool;
+            }
+            catch (err) {
+                this.pool = undefined;
+                throw new Error("createPool() error: " + err.message);
+            }
+        });
     }
     /** Executes query and returns the result */
     query(sqlStr, ...params) {
         try {
             return Promise.resolve()
-                .then(_ => {
+                .then(() => {
                 if (!this.pool) {
-                    throw 'SQL not initialized. Use sql.init(config) first';
+                    throw new Error('SQL not initialized. Use sql.init(config) first');
                 }
-                else if (this.pool.connected) {
-                    this.timerReset();
+                else if (this.pool.status === osql.POOL_STATUS_OPEN) {
                     return this.pool;
                 }
-                else if (this.pool.connecting) {
-                    // wait up to 10 sec to connect
-                    return new Promise((resolve, reject) => {
-                        const handler = () => {
-                            if (this.pool && this.pool.connected) {
-                                clearInterval(waiting);
-                                this.timerReset();
-                                return resolve(this.pool);
-                            }
-                        };
-                        const waiting = setInterval(handler, 100);
-                        setTimeout(() => {
-                            reject('Is taking too long to connect to database');
-                        }, 10000);
-                    });
-                }
                 else {
-                    this.idleTimer = setTimeout(this.close, this.connectionTimeout);
-                    return this.pool.connect().catch(error => {
-                        // // pool.connect() error:
-                        // ELOGIN (ConnectionError) - Login failed.
-                        // ETIMEOUT (ConnectionError) - Connection timeout.
-                        // EALREADYCONNECTED (ConnectionError) - Database is already connected!
-                        // EALREADYCONNECTING (ConnectionError) - Already connecting to database!
-                        // EINSTLOOKUP (ConnectionError) - Instance lookup failed.
-                        // ESOCKET (ConnectionError) - Socket error.
+                    this.pool.terminate();
+                    this.ConnectDB().then(_ => this.pool)
+                        .catch(error => {
                         console.error('SQL Connection Error: ', error);
                         throw error;
                     });
                 }
             })
-                .then(_ => new mssql.Request(this.pool))
-                .then(request => {
+                .then(_ => this.pool.getConnection())
+                .then(connection => {
                 let paramType;
+                let bindVars = {};
                 params.forEach((p, ix) => {
-                    switch (typeof p) {
+                    /*switch (typeof p) {
                         case 'string':
-                            paramType = mssql.NVarChar;
+                            paramType = osql.DB_TYPE_VARCHAR;
                             break;
                         case 'boolean':
-                            paramType = mssql.Bit;
+                            paramType = osql.DB_TYPE_NUMBER;
                             break;
                         case 'number':
-                            if (Number.isInteger(p)) {
-                                paramType = mssql.Int;
-                            }
-                            else {
-                                paramType = mssql.Money;
+                            if (Number.isInteger(p as number)) {
+                                paramType = osql.DB_TYPE_NUMBER;
+                            } else {
+                                paramType = osql.DB_TYPE_BINARY_FLOAT;
                             }
                             break;
                         default:
-                            paramType = mssql.NVarChar;
+                            paramType = osql.DB_TYPE_VARCHAR;
                             break;
-                    }
-                    request.input(`P${ix + 1}`, paramType, p);
+                    }*/
+                    bindVars[`P${ix + 1}`] = { val: p };
                 });
-                const resultSet = request.query(sqlStr);
-                return resultSet;
+                return connection.execute(sqlStr, bindVars);
             })
-                .then(resultSet => resultSet.recordset)
+                .then(resultSet => resultSet.rows)
                 .catch(error => {
                 // ETIMEOUT (RequestError) - Request timeout.
                 // EREQUEST (RequestError) - Message from SQL Server
@@ -135,19 +121,6 @@ class SqlFactory {
             }
             else {
                 return Promise.resolve(null);
-            }
-        });
-    }
-    // Executes an Insert query and returns the identity of the record inserted
-    insertReturnIdentity(sqlStr, ...params) {
-        return __awaiter(this, void 0, void 0, function* () {
-            sqlStr = `${sqlStr}; SELECT SCOPE_IDENTITY()`;
-            const recordset = yield this.query(sqlStr, ...params);
-            if (recordset.length === 1 && recordset[0].hasOwnProperty('')) {
-                return recordset[0][''];
-            }
-            else {
-                return null;
             }
         });
     }

@@ -1,1 +1,1 @@
-export { SqlConfig, sql } from './oraclesql';
+export { SqlConfig, sql,ResultSql } from './oraclesql';
