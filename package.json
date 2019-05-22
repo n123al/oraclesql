@@ -1,0 +1,40 @@
+{
+    "name": "@n123al/oraclesql",
+    "version": "0.0.1",
+    "description": "Connect to an Oraclesql-SQL server and run queries using a simple API",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "prepublish": "npm run build",
+        "build": "tsc",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "engines": {
+        "node": ">=4"
+    },
+    "keywords": [
+        "database",
+        "oraclesqlsql",
+        "sql",
+        "oraclesql",
+        "node-sqlserver",
+        "node-oraclesqlsql"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/n123al/oraclesql.git"
+    },
+    "author": "Frangiskos <n123al@hotmail.com>",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/n123al/oraclesql/issues"
+    },
+    "homepage": "https://github.com/n123al/oraclesql",
+    "dependencies": {
+        "oracledb": "^3.1.2",
+        "@types/oracledb": "^3.1.0"
+    },
+    "devDependencies": {
+        "typescript": "^2.6.2"
+    }
+}
