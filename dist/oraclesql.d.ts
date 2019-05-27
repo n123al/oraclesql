@@ -12,10 +12,10 @@ export declare class SqlFactory {
     ConnectDB(): Promise<void>;
     close: () => void;
     /** Executes query and returns the result */
-    query(sqlStr: string, ...params: Array<string | number | boolean>): Promise<ResultSql>;
+    query(sqlStr: string, ...params: Array<string | number | boolean | Date>): Promise<ResultSql>;
     queryOne(sqlStr: string, ...params: Array<string | number | boolean>): Promise<any>;
     /** Alias to query */
-    q: (sqlStr: string, ...params: (string | number | boolean)[]) => Promise<{
+    q: (sqlStr: string, ...params: (string | number | boolean | Date)[]) => Promise<{
         [column: string]: any;
     }[]>;
     /** Alias to queryOne */

@@ -13,7 +13,8 @@ class SqlFactory {
     constructor() {
         this.close = () => {
             if (this.pool)
-                this.pool.close();
+                this.pool.close(0);
+            this.pool = undefined;
         };
         /** Alias to query */
         this.q = this.query;
@@ -30,6 +31,10 @@ class SqlFactory {
         this.config = config;
         // @ts-ignore
         osql.outFormat = osql.OBJECT;
+        // @ts-ignore
+        osql.autoCommit = true;
+        // @ts-ignore
+        osql.poolMax = 100;
     }
     ConnectDB() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -48,69 +53,66 @@ class SqlFactory {
     }
     /** Executes query and returns the result */
     query(sqlStr, ...params) {
-        try {
-            return Promise.resolve()
-                .then(() => {
-                if (!this.pool) {
-                    throw new Error('SQL not initialized. Use sql.init(config) first');
-                }
-                else if (this.pool.status === osql.POOL_STATUS_OPEN) {
-                    return this.pool;
-                }
-                else {
-                    this.pool.terminate();
-                    this.ConnectDB().then(_ => this.pool)
-                        .catch(error => {
-                        console.error('SQL Connection Error: ', error);
-                        throw error;
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                return Promise.resolve()
+                    .then(() => __awaiter(this, void 0, void 0, function* () {
+                    if (!this.config)
+                        throw new Error('SQL not initialized. Use sql.init(config) first');
+                    if (!this.pool) {
+                        try {
+                            yield this.ConnectDB();
+                        }
+                        catch (error) {
+                            console.error('SQL Connection Error: ', error);
+                            throw error;
+                        }
+                    }
+                    else if (this.pool.status === osql.POOL_STATUS_OPEN) {
+                        return this.pool;
+                    }
+                    else {
+                        this.close();
+                        try {
+                            yield this.ConnectDB();
+                        }
+                        catch (error) {
+                            console.error('SQL Connection Error: ', error);
+                            throw error;
+                        }
+                    }
+                }))
+                    .then(_ => this.pool.getConnection())
+                    .then((connection) => __awaiter(this, void 0, void 0, function* () {
+                    let bindVars = {};
+                    params.forEach((p, ix) => {
+                        if (typeof p === 'boolean')
+                            (p ? p = 1 : p = 0);
+                        bindVars[`P${ix + 1}`] = { val: p };
                     });
-                }
-            })
-                .then(_ => this.pool.getConnection())
-                .then(connection => {
-                let paramType;
-                let bindVars = {};
-                params.forEach((p, ix) => {
-                    /*switch (typeof p) {
-                        case 'string':
-                            paramType = osql.DB_TYPE_VARCHAR;
-                            break;
-                        case 'boolean':
-                            paramType = osql.DB_TYPE_NUMBER;
-                            break;
-                        case 'number':
-                            if (Number.isInteger(p as number)) {
-                                paramType = osql.DB_TYPE_NUMBER;
-                            } else {
-                                paramType = osql.DB_TYPE_BINARY_FLOAT;
-                            }
-                            break;
-                        default:
-                            paramType = osql.DB_TYPE_VARCHAR;
-                            break;
-                    }*/
-                    bindVars[`P${ix + 1}`] = { val: p };
+                    let result = yield connection.execute(sqlStr, bindVars);
+                    connection.close();
+                    return result;
+                }))
+                    .then(resultSet => resultSet.rows)
+                    .catch(error => {
+                    // ETIMEOUT (RequestError) - Request timeout.
+                    // EREQUEST (RequestError) - Message from SQL Server
+                    // ECANCEL (RequestError) - Cancelled.
+                    // ENOCONN (RequestError) - No connection is specified for that request.
+                    // ENOTOPEN (ConnectionError) - Connection not yet open.
+                    // ECONNCLOSED (ConnectionError) - Connection is closed.
+                    // ENOTBEGUN (TransactionError) - Transaction has not begun.
+                    // EABORT (TransactionError) - Transaction was aborted (by user or because of an error).
+                    console.error('SQL Query Error: ', error);
+                    throw error;
                 });
-                return connection.execute(sqlStr, bindVars);
-            })
-                .then(resultSet => resultSet.rows)
-                .catch(error => {
-                // ETIMEOUT (RequestError) - Request timeout.
-                // EREQUEST (RequestError) - Message from SQL Server
-                // ECANCEL (RequestError) - Cancelled.
-                // ENOCONN (RequestError) - No connection is specified for that request.
-                // ENOTOPEN (ConnectionError) - Connection not yet open.
-                // ECONNCLOSED (ConnectionError) - Connection is closed.
-                // ENOTBEGUN (TransactionError) - Transaction has not begun.
-                // EABORT (TransactionError) - Transaction was aborted (by user or because of an error).
-                console.error('SQL Query Error: ', error);
+            }
+            catch (error) {
+                console.error('SQL Execution Error: ', error);
                 throw error;
-            });
-        }
-        catch (error) {
-            console.error('SQL Execution Error: ', error);
-            throw error;
-        }
+            }
+        });
     }
     // Executes the query and returns the first record
     queryOne(sqlStr, ...params) {

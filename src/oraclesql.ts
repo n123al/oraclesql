@@ -28,7 +28,10 @@ export class SqlFactory {
         this.config =config;
         // @ts-ignore
         osql.outFormat = osql.OBJECT;
-
+        // @ts-ignore
+        osql.autoCommit =true;
+        // @ts-ignore
+        osql.poolMax =100;
     }
 
     public async ConnectDB(){
@@ -43,56 +46,53 @@ export class SqlFactory {
         }
     }
 
-    public close = () => {
-        if (this.pool) this.pool.close();
+    public  close = () => {
+        if (this.pool)  this.pool.close(0);
+        this.pool = undefined;
     };
 
     /** Executes query and returns the result */
-    public query(sqlStr: string, ...params: Array<string | number | boolean>): Promise <ResultSql> {
+    public async query(sqlStr: string, ...params: Array<string | number | boolean | Date>): Promise <ResultSql> {
         try {
             return Promise.resolve()
-                .then(() => {
+                .then(async () => {
+                    if(!this.config)throw new Error('SQL not initialized. Use sql.init(config) first');
                     if (!this.pool) {
-                        throw new Error('SQL not initialized. Use sql.init(config) first');
+                        try {
+                            await this.ConnectDB();
+                            
+                        }
+                        catch(error) {
+                            console.error('SQL Connection Error: ', error );
+                            throw error;
+                        }
                     } else if (this.pool.status === osql.POOL_STATUS_OPEN) {
                         return this.pool;
                     } else  {
-                        this.pool.terminate();
-                        this.ConnectDB().then(_=> this.pool)
-                        .catch(error => {
+                        this.close();
+                        try {
+                            await this.ConnectDB();
+                         
+                        }
+                        catch(error) {
                             console.error('SQL Connection Error: ', error );
                             throw error;
-                        });
+                        }
                      }
                 })
                 .then(_ => this.pool!.getConnection())
-                .then(connection => {
-                    let paramType ;
+                .then(async connection => {
                     let bindVars:{[key:string]:{val:any}} ={};
                     params.forEach((p, ix) => {
-                        /*switch (typeof p) {
-                            case 'string':
-                                paramType = osql.DB_TYPE_VARCHAR;
-                                break;
-                            case 'boolean':
-                                paramType = osql.DB_TYPE_NUMBER;
-                                break;
-                            case 'number':
-                                if (Number.isInteger(p as number)) {
-                                    paramType = osql.DB_TYPE_NUMBER;
-                                } else {
-                                    paramType = osql.DB_TYPE_BINARY_FLOAT;
-                                }
-                                break;
-                            default:
-                                paramType = osql.DB_TYPE_VARCHAR;
-                                break;
-                        }*/
+                        if(typeof p === 'boolean')(p?p=1:p=0);
+                        
                         bindVars[`P${ix + 1}`] = {val:p};
                     });
-            
-                       return connection.execute(
+
+                       let result = await connection.execute(
                             sqlStr, bindVars)
+                            connection.close();
+                            return result;
                         
                 })
                 .then(resultSet => resultSet.rows)
