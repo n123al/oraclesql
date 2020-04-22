@@ -35,6 +35,8 @@ class SqlFactory {
         osql.autoCommit = true;
         // @ts-ignore
         osql.poolMax = 100;
+        // @ts-ignore
+        osql.fetchAsString = [osql.NUMBER];
     }
     ConnectDB() {
         return __awaiter(this, void 0, void 0, function* () {

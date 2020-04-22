@@ -32,6 +32,8 @@ export class SqlFactory {
         osql.autoCommit =true;
         // @ts-ignore
         osql.poolMax =100;
+        // @ts-ignore
+        osql.fetchAsString = [ osql.NUMBER ]; 
     }
 
     public async ConnectDB(){
