@@ -54,7 +54,7 @@ export class SqlFactory {
     };
 
     /** Executes query and returns the result */
-    public async query(sqlStr: string, ...params: Array<string | number | boolean | Date>): Promise <ResultSql> {
+    public async query(sqlStr: string, ...params: Array<string | number | boolean | Date>): Promise <any> {
         try {
             return Promise.resolve()
                 .then(async () => {
@@ -93,7 +93,7 @@ export class SqlFactory {
 
                        let result = await connection.execute(
                             sqlStr, bindVars)
-                            connection.close();
+                           connection.close();
                             return result;
                         
                 })

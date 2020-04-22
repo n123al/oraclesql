@@ -32,7 +32,7 @@ class SqlFactory {
         // @ts-ignore
         osql.outFormat = osql.OBJECT;
         // @ts-ignore
-        osql.autoCommit = true;
+        osql.autoCommit = false;
         // @ts-ignore
         osql.poolMax = 100;
         // @ts-ignore
